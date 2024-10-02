@@ -22,6 +22,10 @@
 
 #include "opencv2/opencv.hpp"
 #include "steam_icp/point.hpp"
+#ifdef ENABLE_CUDA
+  #include "steam_icp/radar/detector.cuh"
+#endif
+
 
 namespace steam_icp {
 
@@ -49,14 +53,28 @@ class ModifiedCACFAR : public Detector /*<PointT>*/ {
         minr_(minr),
         maxr_(maxr),
         range_offset_(range_offset),
-        initial_timestamp_(initial_timestamp_micro) {}
+        initial_timestamp_(initial_timestamp_micro) {
+    if (width_ % 2 == 0) width_ += 1;
+    w2_ = std::floor(width_ / 2);
+  }
 
   std::vector<Point3D> run(const cv::Mat &raw_scan, const float &res, const std::vector<int64_t> &azimuth_times,
                            const std::vector<double> &azimuth_angles) override;
 
+#ifdef ENABLE_CUDA
+  inline std::vector<Point3D> cudaRun(const cv::Mat &raw_scan, const float &res, const std::vector<int64_t> &azimuth_times,
+                           const std::vector<double> &azimuth_angles) {
+                            gpu_mem.toGpu(raw_scan, azimuth_times, azimuth_angles);
+                            return cudaModifiedCACFAR(gpu_mem, minr_, maxr_, w2_, guard_, initial_timestamp_, range_offset_,
+                                                      threshold_, threshold2_, threshold3_, 
+                                                      raw_scan, res, azimuth_times, azimuth_angles);
+                           }
+#endif
+
  private:
   int width_ = 41;  // window = width + 2 * guard
   int guard_ = 2;
+  int w2_ = width_ / 2;
   double threshold_ = 3.0;
   double threshold2_ = 1.1;
   double threshold3_ = 0.22;
@@ -65,8 +83,15 @@ class ModifiedCACFAR : public Detector /*<PointT>*/ {
   double maxr_ = 100.0;
   double range_offset_ = -0.31;
   int64_t initial_timestamp_ = 0;
+#ifdef ENABLE_CUDA
+  CudaMem gpu_mem;
+#endif
 };
 
 }  // namespace steam_icp
 
 #include "steam_icp/radar/detector.inl"
+
+// #ifdef ENABLE_CUDA
+//   #include "detector.cuh"
+// #endif

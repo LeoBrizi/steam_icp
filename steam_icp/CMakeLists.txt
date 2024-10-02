@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.16)
-project(steam_icp)
+cmake_minimum_required(VERSION 3.16.3)
+project(steam_icp LANGUAGES CXX CUDA)
+
+set(ENABLE_CUDA ON)
 
 # Compile as C++17
 set(CMAKE_CXX_STANDARD 17)
@@ -7,6 +9,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Turn on as many warnings as possible by default.
 add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
+
+if(ENABLE_CUDA)
+  message("Use CUDA for radar processing")
+  # CUDA stuff, automatically detect arch
+  find_package(CUDA REQUIRED)
+  include_directories(${CUDA_INCLUDE_DIRS})
+  CUDA_SELECT_NVCC_ARCH_FLAGS(ARCH_FLAGS "Auto")
+  set(CUDA_ARCH "${ARCH_FLAGS}" CACHE STRING "Value of the NVCC -arch option." FORCE)
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_ARCH} -lineinfo")
+  message("CUDA ARCH FLAGS: ${ARCH_FLAGS}")
+  message("CUDA FLAGS: ${CUDA_NVCC_FLAGS}")
+  message(STATUS "CUDA_ARCH: \"${CUDA_ARCH}\"")
+endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -42,12 +57,29 @@ link_libraries(
 )
 
 file(GLOB_RECURSE STEAM_ICP_SRCS src/*.cpp)
-add_executable(${PROJECT_NAME} ${STEAM_ICP_SRCS})
+
+# if(ENABLE_CUDA)
+#   
+# else()
+  # add_executable(${PROJECT_NAME} ${STEAM_ICP_SRCS})
+# endif()
+
+file(GLOB_RECURSE STEAM_ICP_SRCS_CU src/*.cu)
+message($(STEAM_ICP_SRCS_CU))
+add_executable(${PROJECT_NAME} ${STEAM_ICP_SRCS} ${STEAM_ICP_SRCS_CU})
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp tf2 tf2_ros tf2_eigen nav_msgs
   pcl_conversions pcl_ros OpenCV
 )
 
+if(ENABLE_CUDA)
+  target_link_libraries(${PROJECT_NAME} "-L/usr/local/lib/libprofiler.so" profiler ${CUDA_LIBRARIES})
+  set_target_properties(${PROJECT_NAME} 
+  PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+  )
+  add_definitions(-DENABLE_CUDA)
+endif()
+  
 add_executable(simulation simulation/sim.cpp)
 ament_target_dependencies(simulation
   rclcpp tf2 tf2_ros tf2_eigen nav_msgs

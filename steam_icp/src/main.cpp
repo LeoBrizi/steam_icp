@@ -20,6 +20,10 @@ namespace fs = std::filesystem;
 
 #include "lgmath.hpp"
 
+#ifdef ENABLE_CUDA
+  #include "steam_icp/utils/cuda_utils.cuh"
+#endif
+
 #include "steam_icp/dataset.hpp"
 #include "steam_icp/odometry.hpp"
 #include "steam_icp/point.hpp"
@@ -1080,6 +1084,19 @@ int main(int argc, char **argv) {
   fs::create_directories(FLAGS_log_dir);
   google::InitGoogleLogging(argv[0]);
   LOG(WARNING) << "Logging to " << FLAGS_log_dir;
+
+#ifdef ENABLE_CUDA 
+  // checking CUDA device
+  std::cerr << std::endl
+            << "_______________________________________________" << std::endl
+            << std::endl;
+  const int n_devices = getDeviceInfo();
+  if (!n_devices) {
+    std::cerr << std::string(environ[0]) + "|ERROR GPU not found";
+    std::cerr << std::endl;
+    return -1;
+  }
+#endif
 
   // Read parameters
   auto options = loadOptions(node);

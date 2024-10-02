@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
 
 CMD ["/bin/bash"]
 
@@ -17,6 +17,9 @@ RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
 
 ENV DEBIAN_FRONTEND=noninteractive
+# env vars for the nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
 ## Switch to specified user to create directories
 USER ${USERID}:${GROUPID}
@@ -26,7 +29,7 @@ USER 0:0
 
 ## Dependencies
 RUN apt update && apt upgrade -q -y
-RUN apt update && apt install -q -y cmake git build-essential lsb-release curl gnupg2
+RUN apt update && apt install -q -y git build-essential lsb-release curl gnupg2
 RUN apt update && apt install -q -y libboost-all-dev libomp-dev
 RUN apt update && apt install -q -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
 RUN apt update && apt install -q -y freeglut3-dev
@@ -72,7 +75,21 @@ RUN pip3 install asrl-pylgmath asrl-pysteam
 
 RUN apt update && apt install -q -y \
   libsuitesparse-dev \
-  wget
+  wget 
 
+RUN git clone https://github.com/gperftools/gperftools && cd gperftools && ./autogen.sh && ./configure && make && make install
+
+RUN apt update && apt install -q -y \
+  google-perftools \
+  graphviz \
+  gperf \
+  libgoogle-perftools-dev
+
+RUN apt install -q -y gpg wget
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+RUN apt-get update && apt-get install -q -y kitware-archive-keyring
+RUN rm /usr/share/keyrings/kitware-archive-keyring.gpg
+RUN apt-get update && apt-get install -q -y cmake
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

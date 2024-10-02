@@ -32,7 +32,7 @@ cmake -G "$GENERATOR" -S $EXT_SRC_DIR -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
 check_status_code $?
 
 echo "[STEAM_ICP] -- [EXTERNAL DEPENDENCIES] -- building CMake Project"
-cmake --build . --config $BUILD_TYPE
+cmake --build . --config $BUILD_TYPE 
 check_status_code $?
 
 echo "[STEAM_ICP] -- [LGMATH] -- Generating the cmake project"
@@ -45,7 +45,7 @@ cmake -G "$GENERATOR" -S $LGMATH_SRC_DIR \
 check_status_code $?
 
 echo "[STEAM_ICP] -- [LGMATH] -- building CMake Project"
-cmake --build . --config $BUILD_TYPE --target install --parallel 6
+cmake --build . --config $BUILD_TYPE --target install --parallel 6 
 check_status_code $?
 
 echo "[STEAM_ICP] -- [STEAM] -- Generating the cmake project"

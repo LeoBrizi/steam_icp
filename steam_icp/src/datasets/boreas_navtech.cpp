@@ -232,7 +232,13 @@ std::vector<Point3D> BoreasNavtechSequence::readPointCloud(const std::string &pa
 
   std::unique_ptr<Stopwatch<>> timer = std::make_unique<Stopwatch<>>(false);
   timer->start();
+
+#ifdef ENABLE_CUDA
+  const auto pc = detector.cudaRun(fft_data, radar_resolution, azimuth_times, azimuth_angles);
+#else
   const auto pc = detector.run(fft_data, radar_resolution, azimuth_times, azimuth_angles);
+#endif  
+
   timer->stop();
   LOG(INFO) << "Detector ..................... " << timer->count() << " ms" << std::endl;
   return pc;
