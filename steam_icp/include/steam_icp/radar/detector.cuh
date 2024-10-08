@@ -15,27 +15,21 @@ namespace steam_icp {
       if(raw_scan_device) {
         CUDA_CHECK(cudaFree(raw_scan_device));
         CUDA_CHECK(cudaFree(th_matrix_device));
-        CUDA_CHECK(cudaFree(azimuth_times_device));
-        CUDA_CHECK(cudaFree(azimuth_angles_device));
         CUDA_CHECK(cudaFree(means_device));
       }
     };
 
-    __host__ void toGpu(const cv::Mat& raw_scan, const std::vector<int64_t> &azimuth_times, const std::vector<double> &azimuth_angles) {
+    __host__ void toGpu(const cv::Mat& raw_scan) {
       if (!raw_scan_device) {
         rows = raw_scan.rows;
         cols = raw_scan.cols;
         CUDA_CHECK(cudaMalloc((void**) &raw_scan_device, sizeof(float) * rows * cols));
         CUDA_CHECK(cudaMalloc((void**) &th_matrix_device, sizeof(char) * rows * cols));
-        CUDA_CHECK(cudaMalloc((void**) &azimuth_times_device, sizeof(int64_t) * rows));
-        CUDA_CHECK(cudaMalloc((void**) &azimuth_angles_device, sizeof(int64_t) * rows));
         CUDA_CHECK(cudaMalloc((void**) &means_device, sizeof(float) * rows));
         th_mat = cv::Mat(rows, cols, CV_8UC1);
       }
       CUDA_CHECK(cudaMemcpy(raw_scan_device, raw_scan.ptr<float>(), sizeof(float) * rows * cols, cudaMemcpyHostToDevice));
       CUDA_CHECK(cudaMemset(th_matrix_device, 0, sizeof(char) * rows * cols));
-      CUDA_CHECK(cudaMemcpy(azimuth_times_device, azimuth_times.data(), sizeof(float) * rows, cudaMemcpyHostToDevice));
-      CUDA_CHECK(cudaMemcpy(azimuth_angles_device, azimuth_angles.data(), sizeof(float) * rows, cudaMemcpyHostToDevice));
       return;
     };
 
@@ -45,8 +39,6 @@ namespace steam_icp {
 
     float* raw_scan_device = nullptr;
     char* th_matrix_device = nullptr;
-    int64_t* azimuth_times_device = nullptr;
-    double* azimuth_angles_device = nullptr;
     double* means_device = nullptr;
     int rows;
     int cols;
@@ -57,12 +49,7 @@ namespace steam_icp {
 
   __global__ void modifiedCACFAR_kernel(float* raw_scan,
                                         char* th_matrix,
-                                        int64_t* azimuth_times,
-                                        double* azimuth_angles,
-                                        float* means,
-                                        int64_t initial_ts,
-                                        int64_t last_azimuth_times,
-                                        double time_delta,
+                                        double* means,
                                         int min_col,
                                         int max_col,
                                         int rows,
@@ -71,8 +58,7 @@ namespace steam_icp {
                                         int guard,
                                         double threshold,
                                         double threshold2,
-                                        double threshold3,
-                                        float res);
+                                        double threshold3);
                                       
   std::vector<Point3D> cudaModifiedCACFAR(CudaMem& gpu_mem,
                                           double minr,

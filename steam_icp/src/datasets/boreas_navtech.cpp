@@ -182,7 +182,7 @@ DataFrame BoreasNavtechSequence::next() {
     if (p.timestamp < tmin) tmin = p.timestamp;
     if (p.timestamp > tmax) tmax = p.timestamp;
   }
-
+  std::cerr << "min and max ts: " << tmin << " " << tmax <<std::endl;
   frame.imu_data_vec.reserve(50);
   for (; curr_imu_idx_ < imu_data_vec_.size(); curr_imu_idx_++) {
     if (imu_data_vec_[curr_imu_idx_].timestamp < tmin) {
@@ -213,22 +213,24 @@ std::vector<Point3D> BoreasNavtechSequence::readPointCloud(const std::string &pa
   //                                  options_.min_dist_sensor_center, options_.max_dist_sensor_center,
   //                                  options_.radar_range_offset, initial_timestamp_);
 
-  auto detector = [&]() -> ModifiedCACFAR /*<Point3D>*/ {
-    if (radar_resolution > 0.05) {
-      return ModifiedCACFAR /*<Point3D>*/ (options_.modified_cacfar_width, options_.modified_cacfar_guard,
-                                           options_.modified_cacfar_threshold, options_.modified_cacfar_threshold2,
-                                           options_.modified_cacfar_threshold3, options_.modified_cacfar_num_threads,
-                                           options_.min_dist_sensor_center, options_.max_dist_sensor_center,
-                                           options_.radar_range_offset, initial_timestamp_);
-    } else {
-      return ModifiedCACFAR /*<Point3D>*/ (
-          options_.modified_cacfar_width_0438, options_.modified_cacfar_guard_0438,
-          options_.modified_cacfar_threshold_0438, options_.modified_cacfar_threshold2_0438,
-          options_.modified_cacfar_threshold3_0438, options_.modified_cacfar_num_threads,
-          options_.min_dist_sensor_center, options_.max_dist_sensor_center, options_.radar_range_offset,
-          initial_timestamp_);
-    }
-  }();
+  // auto detector = [&]() -> ModifiedCACFAR /*<Point3D>*/ {
+  //   if (radar_resolution > 0.05) {
+  //     return ModifiedCACFAR /*<Point3D>*/ (options_.modified_cacfar_width, options_.modified_cacfar_guard,
+  //                                          options_.modified_cacfar_threshold, options_.modified_cacfar_threshold2,
+  //                                          options_.modified_cacfar_threshold3, options_.modified_cacfar_num_threads,
+  //                                          options_.min_dist_sensor_center, options_.max_dist_sensor_center,
+  //                                          options_.radar_range_offset, initial_timestamp_);
+  //   } else {
+  //     return ModifiedCACFAR /*<Point3D>*/ (
+  //         options_.modified_cacfar_width_0438, options_.modified_cacfar_guard_0438,
+  //         options_.modified_cacfar_threshold_0438, options_.modified_cacfar_threshold2_0438,
+  //         options_.modified_cacfar_threshold3_0438, options_.modified_cacfar_num_threads,
+  //         options_.min_dist_sensor_center, options_.max_dist_sensor_center, options_.radar_range_offset,
+  //         initial_timestamp_);
+  //   }
+  // }();
+
+  auto detector = KStrongest(10, 0.22, 2.0,100.0,-0.31,initial_timestamp_);
 
   std::unique_ptr<Stopwatch<>> timer = std::make_unique<Stopwatch<>>(false);
   timer->start();

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16.3)
 project(steam_icp LANGUAGES CXX CUDA)
 
-set(ENABLE_CUDA ON)
+set(ENABLE_CUDA OFF)
 
 # Compile as C++17
 set(CMAKE_CXX_STANDARD 17)

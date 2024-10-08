@@ -91,5 +91,7 @@ RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https:
 RUN apt-get update && apt-get install -q -y kitware-archive-keyring
 RUN rm /usr/share/keyrings/kitware-archive-keyring.gpg
 RUN apt-get update && apt-get install -q -y cmake
+
+RUN apt-get install -q -y gdb
 ## Switch to specified user
 USER ${USERID}:${GROUPID}

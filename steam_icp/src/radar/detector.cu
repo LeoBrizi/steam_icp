@@ -20,12 +20,7 @@ namespace steam_icp {
 
   __global__ void modifiedCACFAR_kernel(float* raw_scan,
                                      char* th_matrix,
-                                     int64_t* azimuth_times,
-                                     double* azimuth_angles,
                                      double* means,
-                                     int64_t initial_ts,
-                                     int64_t last_azimuth_times,
-                                     double time_delta,
                                      int min_col,
                                      int max_col,
                                      int rows,
@@ -34,8 +29,7 @@ namespace steam_icp {
                                      int guard,
                                      double threshold,
                                      double threshold2,
-                                     double threshold3,
-                                     float res) {
+                                     double threshold3) {
 
     int row_index = blockIdx.x * blockDim.x + threadIdx.x;
     int col_index = blockIdx.y * blockDim.y + threadIdx.y;
@@ -44,10 +38,6 @@ namespace steam_icp {
       return;
 
     // for (int i = 0; i < rows; ++i) {
-    // const double azimuth = azimuth_angles[row_index];
-    // const double time = (azimuth_times[row_index] - initial_ts) * 1.0e-6;
-    // const double alpha_time = fmin(1.0, fmax(0.0, 1 - (last_azimuth_times - azimuth_times[row_index]) / time_delta));
-
     // for (int j = mincol; j < maxcol; ++j) {
     double left = 0;
     double right = 0;
@@ -92,11 +82,6 @@ namespace steam_icp {
 
   const double time_delta = azimuth_times.back() - azimuth_times.front();
 
-  dim3 dim_block(16, 16);
-  dim3 dim_grid;
-  dim_grid.x = (rows + dim_block.x - 1) / dim_block.x;
-  dim_grid.y = (cols + dim_block.y - 1) / dim_block.y;
-
   const unsigned int block_size = 256;
   const unsigned int num_blocks = (rows + block_size - 1) / block_size;
 
@@ -104,27 +89,33 @@ namespace steam_icp {
 
   cudaDeviceSynchronize();
 
+  dim3 dim_block(16, 16);
+  dim3 dim_grid;
+  dim_grid.x = (rows + dim_block.x - 1) / dim_block.x;
+  dim_grid.y = (cols + dim_block.y - 1) / dim_block.y;
+
   // call the kernel
   modifiedCACFAR_kernel<<<dim_grid, dim_block>>>(gpu_mem.raw_scan_device, 
-                        gpu_mem.th_matrix_device, gpu_mem.azimuth_times_device, 
-                        gpu_mem.azimuth_angles_device, gpu_mem.means_device, initial_ts,
-                        azimuth_times.back(), time_delta, mincol, maxcol, rows, cols, w2, guard, th, th2, th3, res);
+                                                 gpu_mem.th_matrix_device,
+                                                 gpu_mem.means_device,
+                                                 mincol, maxcol, 
+                                                 rows, cols, 
+                                                 w2, guard, 
+                                                 th, th2, th3);
 
   cudaDeviceSynchronize();
 
   gpu_mem.fromGpu();
 
+  // uncomment to see the threshold image
   // std::cerr << rows << "   " << cols << std::endl;
   // cv::imshow("Display window", gpu_mem.th_mat);
   // int k = cv::waitKey();
 
-  // #pragma omp declare reduction(merge_points : std::vector<Point3D> : omp_out.insert( \
-  //       omp_out.end(), omp_in.begin(), omp_in.end())) initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
-  // #pragma omp parallel for num_threads(num_threads_) reduction(merge_points : raw_points)
   for (int row = 0; row < rows; ++row) {
     float peak_points = 0;
     int num_peak_points = 0;
-    const double azimuth = azimuth_angles[row];
+    const double &azimuth = azimuth_angles[row];
     const double time = (azimuth_times[row] - initial_ts) * 1.0e-6;
     const double alpha_time = std::fmin(1.0, std::fmax(0.0, 1 - (azimuth_times.back() - azimuth_times[row]) / time_delta));
     

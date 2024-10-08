@@ -99,4 +99,69 @@ std::vector<Point3D> ModifiedCACFAR::run(const cv::Mat &raw_scan, const float &r
   return raw_points;
 }
 
+// credits: Elliot Preston-Krebs
+std::vector<Point3D> KStrongest::run(const cv::Mat &raw_scan, const float &res,
+                             const std::vector<int64_t> &azimuth_times,
+                             const std::vector<double> &azimuth_angles) {
+
+  const int rows = raw_scan.rows;
+  const int cols = raw_scan.cols;
+  auto mincol = minr_ / res;
+  if (mincol > cols || mincol < 0) mincol = 0;
+  auto maxcol = maxr_ / res;
+  if (maxcol > cols || maxcol < 0) maxcol = cols;
+
+  const double time_delta = azimuth_times.back() - azimuth_times.front();
+
+  std::vector<Point3D> raw_points;
+  raw_points.reserve(kstrong_ * rows);
+
+  for (int i = 0; i < rows; ++i) {
+
+    std::vector<std::pair<float, int>> intens;
+
+    for (int j = mincol; j < maxcol; ++j) {
+      if (raw_scan.at<float>(i, j) >= threshold3_){
+        intens.push_back(std::make_pair(raw_scan.at<float>(i, j), j));
+      }
+    }
+
+    int thresholded_point = intens.size();
+    if (thresholded_point == 0)
+      continue;
+    
+    std::sort(intens.begin(), intens.end(), [](const std::pair<float, int> &a,
+                                               const std::pair<float, int> &b) {
+                                                 return (a.first > b.first);});
+    const double& azimuth = azimuth_angles[i];
+    const double time = (azimuth_times[i] - initial_timestamp_) * 1.0e-6;
+    const double alpha_time = std::min(1.0, std::max(0.0, 1 - (azimuth_times.back() - azimuth_times[i]) / time_delta));
+    
+    for (int j = 0; j < kstrong_; ++j) {
+      if (j >= thresholded_point)
+        break;
+
+      Point3D p;
+      const double rho = static_cast<float>(intens[j].second) * res + static_cast<float>(range_offset_);
+      p.raw_pt[0] = rho * std::cos(-azimuth);
+      p.raw_pt[1] = rho * std::sin(-azimuth);
+      p.raw_pt[2] = 0.0;
+      p.pt = p.raw_pt;
+      p.timestamp = time;
+      p.radial_velocity = rho;
+      p.alpha_timestamp = alpha_time;
+      raw_points.push_back(p);
+    }
+
+  }
+  raw_points.shrink_to_fit();
+  std::sort(raw_points.begin(), raw_points.end(), [](Point3D a, Point3D b) {
+    if (a.timestamp == b.timestamp)
+      return a.radial_velocity < b.radial_velocity;
+    else
+      return a.timestamp < b.timestamp;
+  });
+  return raw_points;
+}
+
 }  // namespace steam_icp
